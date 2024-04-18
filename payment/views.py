@@ -25,6 +25,7 @@ from datetime import timedelta
 from rest_framework import generics
 from accounts.models import SubscriptionPlan
 from .serializers import SubscriptionPlanSerializer
+from decouple import config
 
 
 stripe.api_key = settings.STRIPE_SECRET_KEY
@@ -52,38 +53,43 @@ class SubscriptionPlanList(generics.ListAPIView):
 
 class CreateCheckoutSessionAPIView(APIView):
     def post(self, request, *args, **kwargs):
-        subscription_id = self.kwargs["pk"]
-        print(subscription_id, 'subscription_id')
-        subscription = get_object_or_404(SubscriptionPlan, id=subscription_id)
-        # YOUR_DOMAIN = "http://127.0.0.1:8000"
-        YOUR_FRONTEND_DOMAIN = "http://localhost:5173"
-        # YOUR_FRONTEND_DOMAIN = "https://ai-lawyer.neuracase.com"
+        try:
+            subscription_id = self.kwargs["pk"]
+            print(subscription_id, 'subscription_id')
+            subscription = get_object_or_404(SubscriptionPlan, id=subscription_id)
+            print(subscription.price, 'subscription')
 
-        checkout_session = stripe.checkout.Session.create(
-            payment_method_types=['card'],
-            line_items=[
-                {
-                    'price_data': {
-                        'currency': 'usd',
-                        'unit_amount': subscription.price,
-                        'product_data': {
-                            'name': subscription.name,
+            if(subscription.name is None):
+                return Response({"error": "Invalid subscription"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+            YOUR_FRONTEND_DOMAIN = config('FRONTEND_URL')
+
+            checkout_session = stripe.checkout.Session.create(
+                payment_method_types=['card'],
+                line_items=[
+                    {
+                        'price_data': {
+                            'currency': 'usd',
+                            'unit_amount': subscription.price*100, #convert to normal
+                            'product_data': {
+                                'name': subscription.name,
+                            },
                         },
+                        'quantity': 1,
                     },
-                    'quantity': 1,
+                ],
+                metadata={
+                    "product_id": subscription.id
                 },
-            ],
-            metadata={
-                "product_id": subscription.id
-            },
-            mode='payment',
-            # success_url=YOUR_DOMAIN + '/payment/success/',
-            success_url=YOUR_FRONTEND_DOMAIN + '/subscription?success=true',
-            # cancel_url='http://localhost:5173/subscription'
-            cancel_url = YOUR_FRONTEND_DOMAIN + '/subscription?canceled=true',
-        )
+                mode='payment',
+                success_url=YOUR_FRONTEND_DOMAIN + '/subscription?success=true',
+                cancel_url = YOUR_FRONTEND_DOMAIN + '/subscription?canceled=true',
+            )
 
-        return Response({'id': checkout_session.id})
+            return Response({'id': checkout_session.id})
+        except Exception as e:
+            print(e)
+            return Response({'success': False, 'message': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @csrf_exempt
@@ -393,3 +399,22 @@ class ProcessWebhookView(View):
 
 
         return HttpResponse()
+
+
+
+# @method_decorator(csrf_exempt)
+class CreateIntentView(APIView):
+    def post(self, request):
+        try:
+            subscription_id = request.data.get('subscription_id')
+            subscription = get_object_or_404(SubscriptionPlan, id=subscription_id)
+
+            payment_intent = stripe.PaymentIntent.create(
+                amount=subscription.price * 100,
+                currency='usd',
+                # payment_method_types=['card', 'googlePay', 'applePay']
+            )
+            return JsonResponse({'client_secret': payment_intent.client_secret})
+        except Exception as e:
+            print(e)
+            return Response({'success':False,'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

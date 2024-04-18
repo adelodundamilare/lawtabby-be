@@ -1,9 +1,10 @@
 import stripe
 from rest_framework import status
+from decouple import config
 
 def stripe_card_payment(data_dict):
     try:
-        stripe.api_key = 'sk_test_51JeDolGB4JYTbuORxnM5WwmuRGHf9KN7LSGnNAkd0D3sGymHhLeOxjFJa1JYemWs08oKdzFMW3VDybh3GFjUrRGu00h5c89flE'
+        stripe.api_key = config('STRIPE_SECRET_KEY', default='')
         card_details = {
             "type": "card",
             "card": {

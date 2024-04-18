@@ -12,7 +12,8 @@ urlpatterns = [
     path('create_order/', views.CreateOrderView.as_view(), name='create-order'),
     path('capture_order/<str:order_id>/', views.CaptureOrderView.as_view(), name='capture-order'),
 
-    path('webhooks/paypal/', views.ProcessWebhookView.as_view(), name='webhook_view')
+    path('webhooks/paypal/', views.ProcessWebhookView.as_view(), name='webhook_view'),
+    path('create-intent/', views.CreateIntentView.as_view(), name='create_payment_intent'),
 
     # path('stripe_payment/', PaymentAPI.as_view(), name='stripe_payment')
     # path('create-payment-intent/<pk>/', views.StripeIntentView.as_view(), name='create-payment-intent'),
