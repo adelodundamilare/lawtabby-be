@@ -104,12 +104,13 @@ class PromptSubmissionViewSet(APIView):
 
             response = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=payload)
 
-            # print(response.json(), 'okokok')
+            print(response.json(), 'okokok')
 
             content = response.json()['choices'][0]['message']
             # serializer.save(user=self.request.user, response=content)
             return Response({ 'success': True, 'data': content })
         except Exception as e:
+            print(e)
             return Response({'error': f'An error occurred: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
