@@ -82,3 +82,8 @@ class OcrPdf(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     pdf = models.FileField(upload_to='ocr_pdfs/')
     created_at = models.DateTimeField(auto_now_add=True)
+
+class PdfModel(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    pdf = models.FileField(upload_to='pdfs/')
+    created_at = models.DateTimeField(auto_now_add=True)

@@ -36,5 +36,6 @@ urlpatterns = [
 
     #stamp pdf with text
     path('ocr_to_pdf/', OcrPDFView.as_view(), name='ocr_to_pdf'),
+    path('summarize_pdf/', SummarizePDFView.as_view(), name='summarize_pdf'),
 
 ]

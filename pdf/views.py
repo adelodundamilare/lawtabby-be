@@ -12,8 +12,8 @@ from .models import ProtectedPDF, PDFImageConversion, WordToPdfConversion, WordT
 from django.shortcuts import get_object_or_404
 from django.core.files.base import ContentFile
 from django.contrib.sites.shortcuts import get_current_site
-from .utils import convert_other_to_pdf, pdf_to_ocr, protect_pdf, merge_pdf, compress_pdf, split_pdf, convert_pdf_to_image, create_zip_file, stamp_pdf_with_text,  organize_pdf, unlock_pdf
-from .serializers import OcrPdfSerializer, ProtectedPDFSerializer, MergedPDFSerializer, CompressedPDFSerializer, SplitPDFSerializer, PDFImageConversionSerializer, StampPdfSerializer, WordToPdfConversionSerializer, OrganizedPdfSerializer, UnlockPdfSerializer
+from .utils import convert_other_to_pdf, pdf_to_ocr, protect_pdf, merge_pdf, compress_pdf, split_pdf, convert_pdf_to_image, create_zip_file, stamp_pdf_with_text,  organize_pdf, summarize_pdf, unlock_pdf
+from .serializers import BasicSerializer, OcrPdfSerializer, ProtectedPDFSerializer, MergedPDFSerializer, CompressedPDFSerializer, SplitPDFSerializer, PDFImageConversionSerializer, StampPdfSerializer, WordToPdfConversionSerializer, OrganizedPdfSerializer, UnlockPdfSerializer
 
 
 class ProtectPDFView(APIView):
@@ -391,5 +391,22 @@ class OcrPDFView(APIView):
 
             serializer = OcrPdfSerializer(new_file, context={'request': request})
             return Response({'message': 'OCR to PDF conversion successful.', 'data': serializer.data})
+        except Exception as e:
+            return Response({'error': f'An error occurred: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class SummarizePDFView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, format=None):
+        input_pdf = request.FILES.get('input_pdf', None)
+
+        if not input_pdf:
+            return Response({'error': 'No input PDF file.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            response = summarize_pdf(input_pdf, request.user)
+
+            # serializer = BasicSerializer(response, context={'request': request})
+            return Response({'message': 'PDF Summary generation successful.', 'data': response})
         except Exception as e:
             return Response({'error': f'An error occurred: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

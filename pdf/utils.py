@@ -1,9 +1,11 @@
+
+from decouple import config
 import os
 import fitz
 import PyPDF2
 import tempfile
 from PIL import Image
-from io import BytesIO
+from io import BytesIO, StringIO
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen.canvas import Canvas
 from reportlab.lib import colors
@@ -18,7 +20,9 @@ from django.core.files.base import ContentFile
 from zipfile import ZipFile
 from django.contrib.sites.shortcuts import get_current_site
 from rest_framework.reverse import reverse
-from .models import OcrPdf, ProtectedPDF,MergedPDF, CompressedPDF, SplitPDF, OrganizedPdf, StampPdf, UnlockPdf
+
+import openai
+from .models import OcrPdf, PdfModel, ProtectedPDF,MergedPDF, CompressedPDF, SplitPDF, OrganizedPdf, StampPdf, UnlockPdf
 
 import math
 
@@ -523,3 +527,116 @@ def perform_ocr_on_image(image):
     ocr_dict = pytesseract.image_to_data(image, lang='eng', output_type=pytesseract.Output.DICT)
     ocr_text = " ".join([word for word in ocr_dict['text'] if word.strip()])
     return ocr_text
+
+def summarize_pdf(input_pdf, user):
+    temp_file_path = open_file(input_pdf)
+    document = read_pdf(temp_file_path)
+
+    chunks = split_text(document)
+
+    summaries = []
+    for chunk in chunks:
+        prompt = "Please summarize the following document: \n"
+        prompt += "Kindly ensure response is properly formatted using appropriate html tags (heading, paragraph and list tags only): \n"
+        summary = gpt3_completion(prompt + chunk)
+
+        if summary.startswith("GPT-3 error"):
+            continue
+
+        summaries.append(summary)
+
+    # pdf_writer = fitz.open()
+
+    # # Save the result as a PDF
+    # buffer = BytesIO()
+    # pdf_writer.save(buffer)
+    # buffer.seek(0)
+
+    # # Save the PDF to the database using the OcrPdf model (adjust this part according to your model)
+    # pdf = PdfModel(user=user)
+    # pdf.pdf.save('output.pdf', ContentFile(buffer.getvalue()))
+    # pdf.save()
+
+    return ''.join(summaries)
+
+def read_pdf(filename):
+    context = ""
+
+    with fitz.open(filename) as pdf_file:
+        num_pages = pdf_file.page_count
+        for page_num in range(num_pages):
+            page = pdf_file[page_num]
+            page_text = page.get_text()
+            context += page_text
+
+    return context
+
+def open_file(input_pdf):
+    temp_file_path = os.path.join(TEMP_PATH, input_pdf.name)
+
+    with open(temp_file_path, 'wb') as temp_file:
+        for chunk in input_pdf.chunks():
+            temp_file.write(chunk)
+
+    if not os.path.exists(temp_file_path):
+        raise FileNotFoundError(f"Input PDF file '{temp_file_path}' not found.")
+
+    return temp_file_path
+
+def split_text(text, chunk_size=5000):
+    """
+    Splits the given text into chunks of approximately the specified chunk size.
+
+    Args:
+        text (str): The text to split.
+        chunk_size (int): The desired size of each chunk (in characters).
+
+    Returns:
+        List[str]: A list of chunks, each of approximately the specified chunk size.
+    """
+    chunks = []
+    current_chunk = ""
+    current_size = 0
+
+    # Split the text into words
+    words = text.split()
+
+    for word in words:
+        word_size = len(word) + 1  # Add 1 for the space between words
+
+        # If adding the current word exceeds the chunk size, start a new chunk
+        if current_size + word_size > chunk_size:
+            chunks.append(current_chunk.strip())  # Add the current chunk to the list of chunks
+            current_chunk = ""  # Reset the current chunk
+            current_size = 0  # Reset the current size
+
+        # Add the current word to the current chunk
+        current_chunk += word + " "
+        current_size += word_size
+
+    # Add the remaining text as the last chunk
+    if current_chunk:
+        chunks.append(current_chunk.strip())
+
+    return chunks
+
+
+def gpt3_completion(prompt):
+    prompt = prompt.encode(encoding='ASCII',errors='ignore').decode()
+    try:
+        client = openai.OpenAI(
+            api_key=config('OPENAI_API_KEY')
+        )
+
+        response = client.chat.completions.create(
+            messages=[
+                {
+                    "role": "user",
+                    "content": prompt,
+                }
+            ],
+            model="gpt-3.5-turbo",
+        )
+        return response.choices[0].message.content
+    except Exception as oops:
+        return "GPT-3 error: %s" % oops
