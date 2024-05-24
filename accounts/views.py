@@ -1,3 +1,5 @@
+import traceback
+from django.http import JsonResponse
 from django.shortcuts import render
 from accounts.models import User, Token
 from rest_framework_simplejwt.views import TokenObtainPairView
@@ -10,11 +12,18 @@ from django.contrib.auth import update_session_auth_hash
 from accounts.serializers import MyTokenObtainPairSerializer, UserSerializer, ChangePasswordSerializer, UserProfileSerializer
 from rest_framework import generics
 from django.conf import settings
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+
+from rest_framework.decorators import api_view, permission_classes
+from accounts.utils import get_token, google_get_access_token, google_get_user_info
 from project.settings import  GOOGLE_REDIRECT_URL, MICROSOFT_REDIRECT_URL, APPlE_REDIRECT_URL
 from rest_framework import serializers, status
+from decouple import config
 #google login
 from allauth.socialaccount.providers.google.views import GoogleOAuth2Adapter
 from allauth.socialaccount.providers.oauth2.client import OAuth2Client
+from google.oauth2 import id_token
+from google.auth.transport import requests
 from dj_rest_auth.registration.views import SocialLoginView
 #Microsoft login
 from allauth.socialaccount.providers.microsoft.views import MicrosoftGraphOAuth2Adapter
@@ -73,35 +82,39 @@ class ChangePasswordView(APIView):
             if user.check_password(serializer.data.get('old_password')):
                 user.set_password(serializer.data.get('new_password'))
                 user.save()
-                update_session_auth_hash(request, user) 
+                update_session_auth_hash(request, user)
                 return Response({'message': 'Password changed successfully.'}, status=status.HTTP_200_OK)
             return Response({'error': 'Incorrect old password.'}, status=status.HTTP_400_BAD_REQUEST)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-class ProfileAPiView(generics.ListAPIView):
-    permission_classes = [IsAuthenticated]
-    serializer_class = UserProfileSerializer 
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def profile(request):
 
-    def get_queryset(self):
-        user = self.request.user
-        queryset = User.objects.filter(email=user.email)
-        return queryset
-
-
+    user = request.user
+    query = User.objects.filter(email=user.email).first()
+    serializer = UserProfileSerializer(query)
+    return JsonResponse({'data': serializer.data})
 
 
-class GoogleLoginView(SocialLoginView):
-    adapter_class = GoogleOAuth2Adapter
-    callback_url = GOOGLE_REDIRECT_URL
-    client_class = OAuth2Client
-    
+@api_view(['POST'])
+def post_google_login(request):
+    try:
+        token = request.data.get('code')
+        access_token = google_get_access_token(code=token)
 
-    @property
-    def username(self):
-        return self.adapter.user.email
-    
+        user_info = google_get_user_info(access_token)
+
+        token = get_token(user_info)
+
+        return JsonResponse({'message': 'Login successful', 'token': token, 'email': user_info.get('email')})
+
+    except Exception as e:
+        traceback.print_exc()
+        return JsonResponse({'message': 'Unable to login with Google Auth, please try again', 'error': f'{str(e)}'}, status=500)
+
 
 
 

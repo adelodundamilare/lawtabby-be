@@ -267,9 +267,16 @@ STRIPE_WEBHOOK_SECRET = config('STRIPE_WEBHOOK_SECRET', default='')
 
 
 
-
-
 SOCIALACCOUNT_PROVIDERS = {
+    'google': {
+        'SCOPE': [
+            'profile',
+            'email'
+        ],
+        'AUTH_PARAMS': {
+            'access_type': 'online'
+        }
+    },
     'apple': {
         "APP": {
             "client_id": config('SOCIAL_APPLE_CLIENT_ID'),
@@ -291,6 +298,9 @@ AAhUAupv
 }
 
 
+
+SOCIALACCOUNT_QUERY_EMAIL = True
+SOCIALACCOUNT_EMAIL_REQUIRED = True
 
 
 
