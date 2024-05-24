@@ -33,6 +33,7 @@ from allauth.socialaccount.providers.apple.views import AppleOAuth2Adapter
 # from allauth.socialaccount.providers.apple.client import AppleOAuth2Client
 from .apple_utils import AppleOAuth2Client
 from allauth.socialaccount.providers.oauth2.views import OAuth2Error
+from urllib.parse import unquote
 #Mredirect
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views.generic import RedirectView
@@ -92,11 +93,45 @@ class ChangePasswordView(APIView):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def profile(request):
-
     user = request.user
     query = User.objects.filter(email=user.email).first()
     serializer = UserProfileSerializer(query)
-    return JsonResponse({'data': serializer.data})
+
+    # remove unwanted /media from avatar response
+    data = serializer.data
+    if 'avatar' in data and data['avatar'].startswith('/media/'):
+        data['avatar'] = unquote(data['avatar'])[len('/media/'):]
+
+    return JsonResponse({'data': data})
+
+
+@api_view(['PUT'])
+@permission_classes([IsAuthenticated])
+def put_update_name(request):
+    name = request.data.get('name')
+
+    if not name:
+        return JsonResponse('Name is required', status=400)
+
+    user = request.user
+    user.name = name
+    user.save()
+
+    return JsonResponse({'message': "Name has successfully been updated."})
+
+@api_view(['PUT'])
+@permission_classes([IsAuthenticated])
+def put_update_avatar(request):
+    avatar = request.data.get('avatar')
+
+    if not avatar:
+        return JsonResponse('Avatar is required', status=400)
+
+    user = request.user
+    user.avatar = avatar
+    user.save()
+
+    return JsonResponse({'message': "Avatar has successfully been updated."})
 
 
 @api_view(['POST'])
