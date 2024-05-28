@@ -1,12 +1,14 @@
 # views.py in your_app
 
 import json
+import traceback
 from django.http import JsonResponse, StreamingHttpResponse
 from rest_framework import viewsets
 from rest_framework.response import Response
 from .models import PromptSubmission
 from rest_framework import status
 from .serializers import PromptSubmissionSerializer
+from rest_framework.decorators import api_view, permission_classes
 from decouple import config
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
@@ -15,42 +17,11 @@ import base64
 import base64
 import requests
 
+from . import utils
+
 class PromptSubmissionViewSet(APIView):
     permission_classes = [IsAuthenticated]
-    # queryset = PromptSubmission.objects.all()
     serializer_class = PromptSubmissionSerializer
-
-    # def post(self, request):
-    #     messages = request.data.get('messages')
-
-    #     # Parse the request body and extract the prompt
-    #     # messages = serializer.validated_data.get('messages')
-    #     # if(messages[0].get('content') is None):
-    #     #     return Response({'error': 'invalid messages format'}, status=status.HTTP_400_BAD_REQUEST)
-    #     prompt = messages[0].get('content')
-
-    #     # Set up the OpenAI API client
-    #     openai.api_key = config('OPENAI_API_KEY')
-
-    #     # Define a generator function to stream the response
-    #     def generate_response():
-    #         for chunk in openai.ChatCompletion.create(
-    #             model="gpt-3.5-turbo",
-    #             messages=[{
-    #                 "role": "user",
-    #                 "content": prompt
-    #             }],
-    #             stream=True,
-    #         ):
-    #             content = chunk["choices"][0].get("delta", {}).get("content")
-    #             if content is not None:
-
-    #                 yield content
-    #     print(generate_response(), 'prompt')
-
-    #     # Return a streaming response to the client
-    #     return StreamingHttpResponse(generate_response(), content_type='text/event-stream')
-
 
     def post(self, request):
 
@@ -238,3 +209,29 @@ class PromptSubmissionViewSet(APIView):
 
 
 
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def summarize(request):
+
+    try:
+        note = request.data.get('prompt')
+        if not note:
+            return Response({'error': 'Prompt is required'}, status=400)
+
+        prompt = f"""
+            Summarize the main points of the following text in 150-200 words, focusing on the key ideas, arguments, and conclusions:
+
+            {note}
+
+            Please condense the text into a concise and clear summary, highlighting the most important information and omitting unnecessary details. Use your own words and avoid quoting the original text. Aim for a summary that is accurate, informative, and easy to understand.
+        """
+
+        summary = utils.chat_ai(prompt)
+
+        return Response({'message': 'Summary generated successfully','data': summary}, status=200)
+
+
+    except Exception as e:
+        traceback.print_exc()
+        return Response({'error': f'An error occurred: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
