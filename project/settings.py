@@ -131,6 +131,7 @@ CORS_ORIGIN_WHITELIST = (
 CORS_ALLOWED_ORIGINS = [
     "https://ai-lawyer.neuracase.com",
     "https://ai-lawyer.neuracase.com",
+    'https://lawtabby.onrender.com'
 ]
 
 CORS_ALLOW_METHODS = ['GET', 'POST', 'PUT', 'DELETE']
