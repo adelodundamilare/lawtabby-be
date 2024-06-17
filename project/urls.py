@@ -43,6 +43,7 @@ urlpatterns = [
     path('payment/', include('payment.urls')),
     path('pdf/', include('pdf.urls')),
     path('chat/', include('chat.urls')),
+    path('history/', include('history.urls')),
     path('redoc/', schema_view.with_ui('redoc', cache_timeout=0), name='schema-redoc'),
     path('swagger/', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
 ]

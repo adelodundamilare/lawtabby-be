@@ -16,6 +16,8 @@ from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 from rest_framework.decorators import api_view, permission_classes
 from accounts.utils import get_token, google_get_access_token, google_get_user_info
+from helpers.function import add_to_history
+from history.repository import HistoryRepository
 from project.settings import  GOOGLE_REDIRECT_URL, MICROSOFT_REDIRECT_URL, APPlE_REDIRECT_URL
 from rest_framework import serializers, status
 from decouple import config
@@ -130,6 +132,8 @@ def put_update_avatar(request):
     user = request.user
     user.avatar = avatar
     user.save()
+
+    add_to_history(user=user, title='Profile photo updated')
 
     return JsonResponse({'message': "Avatar has successfully been updated."})
 

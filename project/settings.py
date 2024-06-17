@@ -67,6 +67,7 @@ INSTALLED_APPS = [
     'payment',
     'pdf',
     'chat',
+    'history'
 ]
 
 MIDDLEWARE = [
@@ -114,32 +115,24 @@ JWT_AUTH = {
 
 
 
-CORS_ORIGIN_ALLOW_ALL = True
-# CORS_ALLOW_ALL_ORIGINS = True
-CORS_ALLOW_CREDENTIALS = True
-CORS_ORIGIN_WHITELIST = (
+CORS_ALLOW_ALL_ORIGINS = True
+
+CORS_ALLOWED_ORIGINS = [
     # 'http://localhost:3000',
     'http://127.0.0.1:5173',
     'http://localhost:5173',
-    # 'https://lawtabby.netlify.app',
     'https://ai-lawyer.neuracase.com',
-    'https://lawtabby.onrender.com'
-)
-
-
-
-CORS_ALLOWED_ORIGINS = [
-    "https://ai-lawyer.neuracase.com",
-    "https://ai-lawyer.neuracase.com",
     'https://lawtabby.onrender.com'
 ]
 
-CORS_ALLOW_METHODS = ['GET', 'POST', 'PUT', 'DELETE']
-CORS_ALLOW_HEADERS = ['*']
-# CORS_ALLOW_HEADERS = [
-#     'Authorization',
-# ]
-
+CORS_ALLOW_METHODS = [
+    "DELETE",
+    "GET",
+    "OPTIONS",
+    "PATCH",
+    "POST",
+    "PUT",
+]
 
 # Database
 # https://docs.djangoproject.com/en/1.11/ref/settings/#databases
