@@ -34,13 +34,13 @@ class SubscriptionPlan(TimeStampedModel):
     price = models.IntegerField(default=0) #cent
     features = models.TextField(_("Features"), null=True, blank=True)
     free_trial = models.BooleanField(default=True)
-   
+
 
     def __str__(self):
         return self.name
-    
 
-    
+
+
     def get_display_price(self):
         print("{0:.2f}".format(self.price / 100), 'testtttt')
         return "{0:.2f}".format(self.price / 100)
@@ -70,7 +70,7 @@ class Subscription(TimeStampedModel):
         super(Subscription, self).save(*args, **kwargs)
 
     def __str__(self):
-        return f"Subscription for {self.user}"    
+        return f"Subscription for {self.user}"
 
 
 
@@ -92,8 +92,8 @@ class User(AbstractBaseUser, PermissionsMixin):
     is_active = models.BooleanField(default=True)
     last_login = models.DateTimeField(null=True, blank=True)
     date_joined = models.DateTimeField(auto_now_add=True)
-    
-    
+
+
 
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = []
@@ -102,7 +102,7 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     def get_absolute_url(self):
         return "/users/%i/" % (self.pk)
-    
+
     def save(self, *args, **kwargs):
         # Hash the password if it's set and not hashed already
         if self.password and not self.password.startswith("pbkdf2_sha256$"):
@@ -137,7 +137,7 @@ def create_auth_token(sender, instance=None, created=False, **kwargs):
             user=instance,
             plan=free_trial_plan,
             start_date=instance.date_joined,
-            # end_date=instance.date_joined + timedelta(days=30), 
+            # end_date=instance.date_joined + timedelta(days=30),
             end_date = None
         )
 
