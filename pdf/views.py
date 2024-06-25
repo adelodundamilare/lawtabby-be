@@ -1,5 +1,6 @@
 import os
 import shutil
+import traceback
 from rest_framework import generics
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -312,10 +313,10 @@ class OrganizePDFView(APIView):
     def post(self, request, format=None):
         input_pdf = request.FILES.get('input_pdf', None)
         user_order = request.data.get('user_order', '')
+        pages_to_exclude = request.data.get('pages_to_exclude', [])
         try:
             # Convert the string to a list
             user_order = list(map(int, user_order.strip('[]').split(',')))
-            print(type(user_order))
         except ValueError:
             return Response({'error': 'Invalid user order format.'}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -326,12 +327,13 @@ class OrganizePDFView(APIView):
         try:
             user = request.user
             user_order = list(map(int, user_order))
-            converted_file = organize_pdf(input_pdf, user_order, user)
+            converted_file = organize_pdf(input_pdf, user_order, pages_to_exclude, user)
 
             serializer = OrganizedPdfSerializer(converted_file, context={'request': request})
             add_to_history(user=request.user, title='PDF pages organized successfully.')
             return Response({'message': 'PDF pages organized successfully.', 'organized_data': serializer.data})
         except Exception as e:
+            traceback.print_exc()
             return Response({'error': f'An error occurred: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 

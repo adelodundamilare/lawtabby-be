@@ -415,33 +415,37 @@ def convert_other_to_pdf(input_file):
         print(f"An error occurred during conversion: {e}")
 
 
-def organize_pdf(input_pdf, user_order, user):
+
+def organize_pdf(input_pdf, user_order, pages_to_exclude, user):
+
+    if isinstance(user_order, str):
+        user_order = list(map(int, user_order.split(',')))
+    if isinstance(pages_to_exclude, str):
+        pages_to_exclude = list(map(int, pages_to_exclude.split(',')))
+
     with input_pdf.open(mode='rb') as pdf_file:
         pdf_reader = PyPDF2.PdfReader(pdf_file)
         total_pages = len(pdf_reader.pages)
 
-        # Check if the user's order is valid
-        if sorted(user_order) != list(range(1, total_pages + 1)):
+        remaining_pages = [page for page in range(1, total_pages + 1) if page not in pages_to_exclude]
+
+        if sorted(user_order) != sorted(remaining_pages):
             raise ValueError("Invalid page order. Please enter a valid order.")
 
         pdf_writer = PyPDF2.PdfWriter()
         for page_number in user_order:
-            pdf_writer.add_page(pdf_reader.pages[page_number - 1])  # Adjusting for 0-based indexing
+            pdf_writer.add_page(pdf_reader.pages[page_number - 1])
 
-        # Create a BytesIO buffer and write the PDF content
         buffer = BytesIO()
         pdf_writer.write(buffer)
         buffer.seek(0)
 
-        # Save the organized PDF to the OrganizedPdf model
         organized_pdf_instance = OrganizedPdf(user=user)
         organized_pdf_instance.organize_pdf.save(f"organized_output.pdf", ContentFile(buffer.getvalue()))
         organized_pdf_instance.save()
 
         print("PDF successfully organized.")
         return organized_pdf_instance
-
-
 
 
 def unlock_pdf(input_pdf, password, user):
