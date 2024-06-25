@@ -101,7 +101,8 @@ def profile(request):
 
     # remove unwanted /media from avatar response
     data = serializer.data
-    if 'avatar' in data and data['avatar'].startswith('/media/'):
+    avatar = data.get('avatar')
+    if avatar and isinstance(avatar, str) and data['avatar'].startswith('/media/'):
         data['avatar'] = unquote(data['avatar'])[len('/media/'):]
 
     return JsonResponse({'data': data})
