@@ -36,7 +36,7 @@ def fetch_user_downloads(user):
 def add_to_uploads(user, input_file):
     instance = UploadModel(user=user)
     instance.file.save(input_file.name, input_file)
-    instance.file_name.save(input_file.name)
+    instance.file_name = input_file.name
     instance.save()
 
 
