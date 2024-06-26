@@ -47,6 +47,37 @@ def user_uploads(request):
         traceback.print_exc()
         return FailedResponse(error= f'{str(e)}', status_code=500)
 
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def rename_upload(request):
+    try:
+        user = request.user
+        name = request.data.get('name')
+        id = request.data.get('id')
+
+        if not name or not id:
+            return FailedResponse(error='Name or ID is required', status_code=500)
+
+        utils.rename_upload(user, id, name)
+        return SuccessResponse(message='File renamed successfully', status_code=200)
+
+    except Exception as e:
+        traceback.print_exc()
+        return FailedResponse(error= f'{str(e)}', status_code=500)
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def delete_upload(request, id):
+    try:
+        user = request.user
+
+        utils.delete_upload(user, id=id)
+        return SuccessResponse(message='File deleted successfully', status_code=200)
+
+    except Exception as e:
+        traceback.print_exc()
+        return FailedResponse(error= f'{str(e)}', status_code=500)
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def user_downloads(request):

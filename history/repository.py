@@ -43,6 +43,12 @@ class UploadRepository():
         except UploadModel.DoesNotExist:
             return None
 
+    def find_by_id(self, id):
+        try:
+            return UploadModel.objects.get(id=id)
+        except UploadModel.DoesNotExist:
+            return None
+
     def find_latest(self, user):
         try:
             return UploadModel.objects.filter(user=user).order_by('-created_at')[:5]

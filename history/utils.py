@@ -44,3 +44,24 @@ def fetch_user_uploads(user):
     repo = UploadRepository()
     uploads = repo.find_by_user(user)
     return UploadSerializer(uploads, many=True).data
+
+def rename_upload(user, id, name):
+    repo = UploadRepository()
+    upload = repo.find_by_id(id)
+
+    if upload.user != user:
+        raise ValueError('You are not permitted to edit this file')
+
+    upload.name = name
+    upload.save()
+    return True
+
+def delete_upload(user, id):
+    repo = UploadRepository()
+    upload = repo.find_by_id(id=id)
+
+    if upload.user != user:
+        raise ValueError('You are not permitted to delete this file')
+
+    upload.delete()
+    return True
