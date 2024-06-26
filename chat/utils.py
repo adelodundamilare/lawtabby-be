@@ -20,7 +20,7 @@ def chat_ai(prompt: str) -> str:
     ]
 
     payload = {
-        "model": "gpt-4-vision-preview",
+        "model": "gpt-3.5-turbo-0125",
         "messages": messages,
         "max_tokens": 300
     }

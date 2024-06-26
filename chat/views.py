@@ -63,7 +63,7 @@ class PromptSubmissionViewSet(APIView):
                 })
 
             payload = {
-                "model": "gpt-4-vision-preview",
+                "model": "gpt-3.5-turbo-0125",
                 "messages": messages,
                 "max_tokens": 300
             }
@@ -121,7 +121,7 @@ class PromptSubmissionViewSet(APIView):
             })
 
         payload = {
-            "model": "gpt-4-vision-preview",
+            "model": "gpt-3.5-turbo-0125",
             "messages": messages,
             "max_tokens": 300
         }
@@ -200,7 +200,7 @@ class PromptSubmissionViewSet(APIView):
 
     #     response = client.chat.completions.create(
     #         messages=messages,
-    #         model="gpt-4-vision-preview",  # Use the appropriate model
+    #         model="gpt-3.5-turbo-0125",  # Use the appropriate model
     #     )
 
     #     content = response.choices[0].message['content']
