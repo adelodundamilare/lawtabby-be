@@ -2,6 +2,8 @@
 from rest_framework import serializers
 from django.conf import settings
 from django.contrib.sites.shortcuts import get_current_site
+
+from helpers.function import compute_pdf_url
 from .models import OcrPdf, PdfModel, ProtectedPDF, MergedPDF, CompressedPDF, SplitPDF, PDFImageConversion, StampPdf, WordToPdfConversion, WordToPdf, OrganizedPdf, UnlockPdf
 
 class ProtectedPDFSerializer(serializers.ModelSerializer):
@@ -65,12 +67,15 @@ class OrganizedPdfSerializer(serializers.ModelSerializer):
         fields = ['id', 'user',  'organize_pdf', 'created_at']
 
     def get_organize_pdf(self, obj):
-        request = self.context.get('request')
-        if request:
-            current_site = get_current_site(request)
-            base_url = f'http://{current_site.domain}'
-            return f"{base_url}{settings.MEDIA_URL}{obj.organize_pdf.name}"
-        return None
+        return compute_pdf_url(obj.organize_pdf.name)
+
+    # def get_organize_pdf(self, obj):
+    #     request = self.context.get('request')
+    #     if request:
+    #         current_site = get_current_site(request)
+    #         base_url = f'http://{current_site.domain}'
+    #         return f"{base_url}{settings.MEDIA_URL}{obj.organize_pdf.name}"
+    #     return None
 
 
 class UnlockPdfSerializer(serializers.ModelSerializer):

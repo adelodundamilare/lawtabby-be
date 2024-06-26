@@ -1,6 +1,8 @@
 
 from django.http import JsonResponse
 from rest_framework import status
+from django.contrib.sites.shortcuts import get_current_site
+from django.conf import settings
 
 from history.repository import HistoryRepository
 
@@ -30,3 +32,11 @@ def add_to_history(user, title):
         'user':user,
         'title':title
     })
+
+def compute_pdf_url(self, file_name):
+    request = self.context.get('request')
+    if request:
+        current_site = get_current_site(request)
+        base_url = f'http://{current_site.domain}'
+        return f"{base_url}{settings.MEDIA_URL}{file_name}"
+    return None

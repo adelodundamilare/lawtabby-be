@@ -22,8 +22,8 @@ from django.contrib.sites.shortcuts import get_current_site
 from rest_framework.reverse import reverse
 
 import openai
-from .models import OcrPdf, PdfModel, ProtectedPDF,MergedPDF, CompressedPDF, SplitPDF, OrganizedPdf, StampPdf, UnlockPdf
 
+from .models import OcrPdf, PdfModel, ProtectedPDF,MergedPDF, CompressedPDF, SplitPDF, OrganizedPdf, StampPdf, UnlockPdf
 import math
 
 from django.conf import settings

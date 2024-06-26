@@ -10,7 +10,6 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.parsers import MultiPartParser, FormParser
 from django.http import FileResponse
 
-from helpers.function import add_to_history
 from .models import ProtectedPDF, PDFImageConversion, WordToPdfConversion, WordToPdf, OrganizedPdf, MergedPDF,CompressedPDF, SplitPDF, UnlockPdf
 from django.shortcuts import get_object_or_404
 from django.core.files.base import ContentFile
@@ -18,6 +17,7 @@ from django.contrib.sites.shortcuts import get_current_site
 from .utils import convert_other_to_pdf, pdf_to_ocr, protect_pdf, merge_pdf, compress_pdf, split_pdf, convert_pdf_to_image, create_zip_file, stamp_pdf_with_text,  organize_pdf, summarize_pdf, unlock_pdf
 from .serializers import BasicSerializer, OcrPdfSerializer, ProtectedPDFSerializer, MergedPDFSerializer, CompressedPDFSerializer, SplitPDFSerializer, PDFImageConversionSerializer, StampPdfSerializer, WordToPdfConversionSerializer, OrganizedPdfSerializer, UnlockPdfSerializer
 
+from history.utils import add_to_downloads, add_to_uploads
 
 class ProtectPDFView(APIView):
     permission_classes = [IsAuthenticated]
@@ -32,9 +32,9 @@ class ProtectPDFView(APIView):
             return Response({'error': 'Incomplete data provided.'}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
+            add_to_uploads(request.user, input_file)
             protected_file, full_url = protect_pdf(request, input_file, pdf_password, request.user)
             serializer = ProtectedPDFSerializer(protected_file)
-            add_to_history(user=request.user, title='PDF protection completed')
 
             response_data = {
                 'message': 'PDF protection completed',
@@ -80,10 +80,10 @@ class MergePDFView(APIView):
 
         try:
             user = request.user if request.user.is_authenticated else None
+            for input_file in pdf_files:
+                add_to_uploads(user, input_file)
             merged_pdf, full_url = merge_pdf(request, user, pdf_files)
             serializer = MergedPDFSerializer(merged_pdf)
-
-            add_to_history(user=request.user, title='PDFs merged and saved successfully')
 
             response_data = {
                 'message': 'PDFs merged and saved successfully',
@@ -120,11 +120,10 @@ class CompressPDFView(APIView):
 
             try:
                 user = request.user
+                add_to_uploads(user, input_pdf)
                 compressed_pdf, full_url = compress_pdf(request, user, input_pdf, compression_quality)
                 serializer = CompressedPDFSerializer(compressed_pdf)
 
-
-                add_to_history(user=request.user, title='PDF compression completed')
 
                 response_data = {
                 'message': 'PDF compression completed',
@@ -163,9 +162,9 @@ class SplitPDFView(APIView):
 
         try:
             user = request.user
+            add_to_uploads(user, input_pdf)
             split_pdf_instance, full_url= split_pdf(request, input_pdf, start_page, end_page, user)
             serializer = SplitPDFSerializer(split_pdf_instance)
-            add_to_history(user=request.user, title='PDF splitting completed.')
 
             response_data = {
                 'message': 'PDF splitting completed.',
@@ -201,6 +200,7 @@ class PDFToImageConversionView(APIView):
         try:
             user = request.user
             # output_folder = 'pdf_images'
+            add_to_uploads(user, input_pdf)
             image_paths = convert_pdf_to_image(input_pdf)
 
             if len(image_paths) == 1:
@@ -227,7 +227,6 @@ class PDFToImageConversionView(APIView):
             zip_file_full_url = f'{base_url}{pdf_image_conversion.zip_file.url}'
 
             serializer = PDFImageConversionSerializer(pdf_image_conversion)
-            add_to_history(user=request.user, title='PDF to image conversion completed.')
             response_data = {
                 'message': 'PDF to image conversion completed.',
                 'conversion_data': {
@@ -265,12 +264,12 @@ class WordToPdfConversionView(APIView):
             return Response({'error': 'No input files provided.'}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
+            add_to_uploads(request.user, input_file)
             # new_file = convert_other_to_pdf(input_file, request.user)
             new_file = convert_other_to_pdf(input_file)
             print(new_file,'new_file')
 
             serializer = StampPdfSerializer(new_file, context={'request': request})
-            add_to_history(user=request.user, title='Word to PDF conversion successful.')
             return Response({'message': 'PDF pages stamped successfully.', 'data': serializer.data})
         except Exception as e:
             return Response({'error': f'An error occurred: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -327,11 +326,14 @@ class OrganizePDFView(APIView):
         try:
             user = request.user
             user_order = list(map(int, user_order))
+            add_to_uploads(user, input_pdf)
             converted_file = organize_pdf(input_pdf, user_order, pages_to_exclude, user)
 
-            serializer = OrganizedPdfSerializer(converted_file, context={'request': request})
-            add_to_history(user=request.user, title='PDF pages organized successfully.')
-            return Response({'message': 'PDF pages organized successfully.', 'organized_data': serializer.data})
+            serializer = OrganizedPdfSerializer(converted_file, context={'request': request}).data
+
+            # add_to_downloads(user, converted_file, f"{input_pdf.name}")
+
+            return Response({'message': 'PDF pages organized successfully.', 'organized_data': serializer})
         except Exception as e:
             traceback.print_exc()
             return Response({'error': f'An error occurred: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -351,9 +353,9 @@ class UnlockPDFView(APIView):
 
         try:
             user = request.user
+            add_to_uploads(request.user, input_pdf)
             unlock_file = unlock_pdf(input_pdf, password, user)
             serializer = UnlockPdfSerializer(unlock_file, context={'request': request})
-            add_to_history(user=request.user, title='PDF unlocked successfully.')
             return Response({'message': 'PDF unlocked successfully.', 'unlocked_pdf': serializer.data})
         except Exception as e:
             return Response({'error': f'An error occurred: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -382,9 +384,9 @@ class StampPDFView(APIView):
             return Response({'error': 'No stamp text provided.'}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
+            add_to_uploads(request.user, input_pdf)
             new_file = stamp_pdf_with_text(input_pdf, text, request.user)
 
-            add_to_history(user=request.user, title='PDF pages stamped successfully')
 
             serializer = StampPdfSerializer(new_file, context={'request': request})
             return Response({'message': 'PDF pages stamped successfully.', 'data': serializer.data})
@@ -401,10 +403,10 @@ class OcrPDFView(APIView):
             return Response({'error': 'No input PDF file.'}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
+            add_to_uploads(request.user, input_pdf)
             new_file = pdf_to_ocr(input_pdf, request.user)
             print(new_file,'new_file')
 
-            add_to_history(user=request.user, title='OCR to PDF conversion successful')
 
             serializer = OcrPdfSerializer(new_file, context={'request': request})
             return Response({'message': 'OCR to PDF conversion successful.', 'data': serializer.data})
@@ -421,9 +423,9 @@ class SummarizePDFView(APIView):
             return Response({'error': 'No input PDF file.'}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
+            add_to_uploads(request.user, input_pdf)
             response = summarize_pdf(input_pdf, request.user)
 
-            add_to_history(user=request.user, title='PDF Summary generated')
 
             # serializer = BasicSerializer(response, context={'request': request})
             return Response({'message': 'PDF Summary generation successful.', 'data': response})

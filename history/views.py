@@ -34,3 +34,27 @@ def latest(request):
     except Exception as e:
         traceback.print_exc()
         return FailedResponse(error= f'{str(e)}', status_code=500)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def user_uploads(request):
+    try:
+        user = request.user
+        history = utils.fetch_user_uploads(user)
+        return SuccessResponse(message='User Uploads fetched successfully', data=history, status_code=200)
+
+    except Exception as e:
+        traceback.print_exc()
+        return FailedResponse(error= f'{str(e)}', status_code=500)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def user_downloads(request):
+    try:
+        user = request.user
+        history = utils.fetch_user_downloads(user)
+        return SuccessResponse(message='User Downloads fetched successfully', data=history, status_code=200)
+
+    except Exception as e:
+        traceback.print_exc()
+        return FailedResponse(error= f'{str(e)}', status_code=500)
