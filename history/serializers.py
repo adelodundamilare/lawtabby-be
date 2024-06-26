@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from helpers.function import compute_pdf_url
+from helpers.function import compute_file_url
 from history.models import DownloadModel, HistoryModel, UploadModel
 
 class HistorySerializer(serializers.ModelSerializer):
@@ -18,5 +18,10 @@ class UploadSerializer(serializers.ModelSerializer):
         model = UploadModel
         fields = '__all__'
 
-    def get_file(self, obj):
-        return compute_pdf_url(obj.file.name)
+    def get_file_url(self, obj):
+        return compute_file_url(obj.file.name)
+
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        representation['file'] = self.get_file_url(instance)
+        return representation
