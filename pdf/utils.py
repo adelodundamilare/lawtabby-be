@@ -7,7 +7,7 @@ from PIL import Image
 from io import BytesIO
 from reportlab.lib import colors
 import pytesseract
-import docx
+import markdown
 from docx import Document
 import io
 from markdownify import markdownify as md
@@ -503,12 +503,18 @@ def convert_pdf_to_txt(pdf_file):
 
     return output_file
 
-def convert_pdf_to_md( pdf_file):
-    txt_output = convert_pdf_to_txt(pdf_file)
-    txt_output.seek(0)
-    markdown_text = md(txt_output.read().decode('utf-8'))
-    output_file = BytesIO(markdown_text.encode('utf-8'))
-    output_file.name = os.path.basename(pdf_file.path).replace('.pdf', '.md')
+def convert_pdf_to_md(pdf_file):
+    pdf_reader = PdfReader(pdf_file)
+    text = ""
+
+    for page in pdf_reader.pages:
+        text += page.extract_text()
+
+    md_content = markdown.markdown(text)
+
+    output_file = BytesIO(md_content.encode('utf-8'))
+    output_file.name = 'output.md'
+
     return output_file
 
 def convert_pdf_to_jpg(pdf_file, convert_to):
@@ -566,17 +572,6 @@ def convert_pdf_to_image(pdf_file, format):
 #         image.save(output_path, image_format.upper())
 #         output_files.append(output_file)
 #     return output_files
-
-# def _convert_to_docx(self):
-#     doc = docx.Document()
-#     pdf_reader = PyPDF2.PdfReader(self.file.path)
-#     for page in pdf_reader.pages:
-#         text = page.extract_text()
-#         doc.add_paragraph(text)
-#     output_file = "output.docx"
-#     output_path = fs.path(output_file)
-#     doc.save(output_path)
-#     return output_file
 
 # def _convert_to_txt(self):
 #     pdf_reader = PyPDF2.PdfReader(self.file.path)
