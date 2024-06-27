@@ -3,11 +3,8 @@ from decouple import config
 import os
 import fitz
 import PyPDF2
-import tempfile
 from PIL import Image
-from io import BytesIO, StringIO
-from reportlab.lib.pagesizes import letter
-from reportlab.pdfgen.canvas import Canvas
+from io import BytesIO
 from reportlab.lib import colors
 import pytesseract
 import pdfkit
@@ -18,20 +15,23 @@ from PyPDF2 import PdfReader, PdfWriter
 from django.core.files.base import ContentFile
 from zipfile import ZipFile
 from django.contrib.sites.shortcuts import get_current_site
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Image, Spacer
+from pptx import Presentation
+import pandas as pd
+
+from reportlab.pdfgen.canvas import Canvas
+from reportlab.lib.pagesizes import letter, landscape, A4
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Image, Spacer, Table, TableStyle
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.units import inch
 from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib.pagesizes import letter, landscape
+
 from PIL import Image as PILImage
-from zipfile import BadZipFile
-import subprocess
-import tempfile
 
 import openai
 
-from .models import OcrPdf, PdfModel, ProtectedPDF,MergedPDF, CompressedPDF, SplitPDF, OrganizedPdf, StampPdf, UnlockPdf
-import math
+from .models import OcrPdf, ProtectedPDF,MergedPDF, CompressedPDF, SplitPDF, OrganizedPdf, StampPdf, UnlockPdf
 
 from django.conf import settings
 
@@ -277,108 +277,6 @@ def create_zip_file(images, user):
 
 
 
-#Word to pdf
-
-# def perform_conversion(input_file, output_file):
-#     if input_file.name.endswith(".docx"):
-#         # Save the InMemoryUploadedFile to a temporary file
-#         with tempfile.NamedTemporaryFile(delete=False, suffix=".docx") as temp_docx:
-#             temp_docx.write(input_file.read())
-#             temp_docx_path = temp_docx.name
-
-#         try:
-#             convert(temp_docx_path, output_file)
-#             return output_file
-#         except Exception as e:
-#             print(f"Error during conversion: {e}")
-#         finally:
-#             # Remove the temporary file
-#             os.remove(temp_docx_path)
-#     else:
-#         raise ValueError("Unsupported file format")
-
-
-
-# def word_to_pdf(input_files):
-#     converted_files = []
-
-#     with concurrent.futures.ThreadPoolExecutor() as executor:
-#         futures = []
-
-#         for input_file in input_files:
-#             output_file = f"{input_file.name.split('.')[0]}_output.pdf"
-#             futures.append(executor.submit(perform_conversion, input_file, output_file))
-
-#         for future in concurrent.futures.as_completed(futures):
-#             try:
-#                 result = future.result()
-#                 if result:
-#                     converted_files.append(result)
-#                     os.remove(result)
-#             except Exception as e:
-#                 print(f"Error: {e}")
-
-#     return converted_files
-
-
-
-# def convert_to_pdf(input_file_path, output_file_path):
-#     """
-#     Converts a Word document (.docx) to PDF using unoconv and LibreOffice.
-#     """
-#     try:
-
-#         print(input_file_path, 'input_file_path')
-#         print(output_file_path, 'output_file_path')
-#         # Use unoconv to convert the input Word document to PDF
-#         subprocess.run(['unoconv', '-f', 'pdf', '-o', output_file_path, input_file_path], check=True)
-#         return output_file_path
-#     except subprocess.CalledProcessError as e:
-#         print(f"Error during conversion: {e}")
-#         return None
-# def convert_to_pdf(input_file_path, output_file_path):
-#     """
-#     Converts a other document to PDF
-#     """
-#     try:
-#         converter = PyPDF2.Converter()
-#         converter.convert(input_file_path, output_file_path)
-#         converter.close()
-#         return output_file_path
-#     except subprocess.CalledProcessError as e:
-#         print(f"Error during conversion: {e}")
-#         return None
-
-# def word_to_pdf(input_files):
-#     """
-#     Converts a list of Word files to PDF asynchronously.
-#     """
-#     converted_files = []
-
-#     with tempfile.TemporaryDirectory() as temp_dir:
-#         for input_file in input_files:
-#             try:
-#                 if input_file.name.endswith(".docx"):
-#                     input_file_path = os.path.join(temp_dir, input_file.name)
-#                     output_file_path = os.path.join(temp_dir, f"{os.path.splitext(input_file.name)[0]}.pdf")
-
-#                     # Save the input Word file to temporary directory
-#                     with open(input_file_path, 'wb') as temp_file:
-#                         temp_file.write(input_file.read())
-
-#                     # Convert Word to PDF
-#                     converted_file_path = convert_to_pdf(input_file_path, output_file_path)
-
-#                     print(input_file_path, 'input_file_path')
-#                     print(output_file_path, 'output_file_path')
-#                     print(converted_file_path, 'converted_file_path')
-
-#                     if converted_file_path:
-#                         converted_files.append(converted_file_path)
-#             except Exception as e:
-#                 print(f"Error: {e}")
-
-#     return converted_files
 def save_uploaded_file(input_file):
     """
     Saves the uploaded file to a temporary location.
@@ -389,95 +287,161 @@ def save_uploaded_file(input_file):
             temp_file.write(chunk)
     return temp_file_path
 
-def convert_other_to_pdf(docx_file, user):
+def convert_docx_to_pdf(docx_file):
     try:
-        # Read the Word document
         doc = Document(docx_file)
-    except BadZipFile:
-        print(f"Error: The file {docx_file.name} is not a valid Word document.")
-        raise ValueError("Invalid Word document")
+        buffer = io.BytesIO()
+        pdf = SimpleDocTemplate(buffer, pagesize=letter)
+        elements = []
+        styles = getSampleStyleSheet()
 
-    # Create a buffer for the PDF
-    buffer = io.BytesIO()
+        for para in doc.paragraphs:
+            elements.append(Paragraph(para.text, styles['Normal']))
+            elements.append(Spacer(1, 12))
 
-    # Create the PDF document
-    pdf = SimpleDocTemplate(buffer, pagesize=letter)
-
-    # Create a list to hold the flowables
-    elements = []
-
-    # Define styles
-    styles = getSampleStyleSheet()
-
-    # Iterate through paragraphs in the Word document
-    for para in doc.paragraphs:
-        elements.append(Paragraph(para.text, styles['Normal']))
-        elements.append(Spacer(1, 12))  # Add some space between paragraphs
-
-    # Handle images
-    for rel in doc.part.rels.values():
-        if "image" in rel.reltype:
-            try:
-                image_part = rel.target_part
-                image_buffer = io.BytesIO(image_part.blob)
-                img = PILImage.open(image_buffer)
-                img_width, img_height = img.size
-                aspect = img_height / float(img_width)
-                img_width = 6 * inch
-                img_height = aspect * img_width
-                elements.append(Image(image_buffer, width=img_width, height=img_height))
-                elements.append(Spacer(1, 12))  # Add some space after the image
-            except Exception as e:
-                print(f"Error processing image: {str(e)}. Skipping this image.")
-                elements.append(Paragraph("(Image processing error)", styles['Normal']))
-
-    # Build the PDF
-    try:
         pdf.build(elements)
+        return buffer.getvalue()
     except Exception as e:
-        print(f"Error building PDF: {str(e)}")
-        raise ValueError("Error creating PDF")
+        print(f"Error converting Word document: {str(e)}")
+        raise ValueError("Error converting Word document")
 
-    # Get the value of the BytesIO buffer
-    # pdf_value = ContentFile(buffer.getvalue())
-    # buffer.close()
+def convert_pptx_to_pdf(pptx_file):
+    try:
+        prs = Presentation(pptx_file)
+        buffer = io.BytesIO()
+        pdf = SimpleDocTemplate(buffer, pagesize=landscape(letter))
+        elements = []
+        styles = getSampleStyleSheet()
 
-    instance = PdfModel(user=user)
-    instance.pdf.save(f"output.pdf", ContentFile(buffer.getvalue()))
-    # instance.pdf.save(f"output.pdf", new_file)
-    instance.save()
+        for slide in prs.slides:
+            elements.append(Paragraph(f"Slide {slide.slide_id}", styles['Heading1']))
+            for shape in slide.shapes:
+                if hasattr(shape, 'text'):
+                    elements.append(Paragraph(shape.text, styles['Normal']))
+            elements.append(Spacer(1, 12))
 
-    return instance
+        pdf.build(elements)
+        return buffer.getvalue()
+    except Exception as e:
+        print(f"Error converting PowerPoint document: {str(e)}")
+        raise ValueError("Error converting PowerPoint document")
 
-# def convert_other_to_pdf(input_file):
-#     """
-#     Converts uploaded file to PDF format based on its extension.
-#     """
-#     try:
-#         temp_file_path = save_uploaded_file(input_file)
-#         output_file_path = temp_file_path.replace(os.path.splitext(input_file.name)[1], '.pdf')
+def convert_excel_to_pdf(excel_file, file_extension):
+    try:
+        if file_extension == 'xlsx':
+            df = pd.read_excel(excel_file, engine='openpyxl')
+        elif file_extension == 'xls':
+            df = pd.read_excel(excel_file, engine='xlrd')
+        else:
+            raise ValueError(f"Unsupported Excel format: {file_extension}")
 
-#         # Determine conversion command based on file extension
-#         file_extension = os.path.splitext(input_file.name)[1].lower()
+        buffer = io.BytesIO()
+        pdf = SimpleDocTemplate(buffer, pagesize=landscape(letter))
+        elements = []
+        styles = getSampleStyleSheet()
 
-#         pdfkit.from_file(input_file, output_file_path)
-#         # conversion_command = ['pandoc', temp_file_path, "-o", output_file_path]
-#         # if file_extension in ('.txt', '.xlsx'):
-#         #     conversion_command.insert(2, "--from=plain")
-#         # elif file_extension == '.docx':
-#         #     conversion_command.insert(2, "--from=docx")
+        elements.append(Paragraph(f"Sheet: {excel_file.name}", styles['Heading1']))
+        data = [df.columns.tolist()] + df.values.tolist()
+        table = Table(data)
+        table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 14),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+            ('TEXTCOLOR', (0, 1), (-1, -1), colors.black),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
+            ('FONTSIZE', (0, 0), (-1, -1), 12),
+            ('TOPPADDING', (0, 0), (-1, -1), 6),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black)
+        ]))
+        elements.append(table)
 
-#         print(TEMP_PATH, 'TEMP_PATH')
-#         print(temp_file_path, 'temp_file_path')
-#         print(output_file_path, 'output_file_path')
+        pdf.build(elements)
+        return buffer.getvalue()
+    except Exception as e:
+        print(f"Error converting Excel document: {str(e)}")
+        raise ValueError("Error converting Excel document")
 
-#         # subprocess.run(['unoconv', '-f', 'pdf', '-o', output_file_path, temp_file_path], check=True)
-#         # print(f"Conversion successful. PDF saved as {output_file_path}")
-#         # subprocess.run(['libreoffice', '--headless', '--convert-to', 'pdf', '--outdir', TEMP_PATH, temp_file_path], check=True)
-#         # print(f"Conversion successful. PDF saved as {output_file_path}")
+def convert_csv_to_pdf(csv_file):
+    try:
+        df = pd.read_csv(csv_file)
 
-#     except Exception as e:
-#         print(f"An error occurred during conversion: {e}")
+        buffer = io.BytesIO()
+        pdf = SimpleDocTemplate(buffer, pagesize=landscape(letter))
+        elements = []
+        styles = getSampleStyleSheet()
+
+        elements.append(Paragraph(f"CSV: {csv_file.name}", styles['Heading1']))
+        data = [df.columns.tolist()] + df.values.tolist()
+        table = Table(data)
+        table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 14),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+            ('TEXTCOLOR', (0, 1), (-1, -1), colors.black),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
+            ('FONTSIZE', (0, 0), (-1, -1), 12),
+            ('TOPPADDING', (0, 0), (-1, -1), 6),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black)
+        ]))
+        elements.append(table)
+
+        pdf.build(elements)
+        return buffer.getvalue()
+    except Exception as e:
+        print(f"Error converting CSV document: {str(e)}")
+        raise ValueError("Error converting CSV document")
+
+def convert_image_to_pdf(image_file):
+    try:
+        image = PILImage.open(image_file)
+
+        buffer = io.BytesIO()
+        pdf = SimpleDocTemplate(buffer, pagesize=A4)
+        width, height = A4
+
+        # Adjust image size to fit the page
+        img_width, img_height = image.size
+        aspect = img_height / float(img_width)
+
+        if img_width > width:
+            img_width = width
+            img_height = aspect * img_width
+
+        elements = [Image(image_file, width=img_width, height=img_height)]
+
+        pdf.build(elements)
+        return buffer.getvalue()
+    except Exception as e:
+        print(f"Error converting image: {str(e)}")
+        raise ValueError("Error converting image")
+
+def convert_other_to_pdf(file):
+    file_extension = file.name.split('.')[-1].lower()
+
+    if file_extension in ['docx', 'doc']:
+        return convert_docx_to_pdf(file)
+    elif file_extension in ['pptx', 'ppt']:
+        return convert_pptx_to_pdf(file)
+    elif file_extension in ['xlsx', 'xls']:
+        return convert_excel_to_pdf(file)
+    elif file_extension == 'csv':
+        return convert_csv_to_pdf(file)
+    elif file_extension in ['jpg', 'jpeg', 'png', 'gif']:
+        return convert_image_to_pdf(file)
+    else:
+        raise ValueError(f"Unsupported file format: {file_extension}")
 
 
 

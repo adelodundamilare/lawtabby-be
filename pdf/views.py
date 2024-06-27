@@ -265,17 +265,14 @@ class WordToPdfConversionView(APIView):
 
         try:
             # add_to_uploads(request.user, input_file)
-            # new_file = convert_other_to_pdf(input_file, request.user)
-            new_file = convert_other_to_pdf(input_file, user=request.user)
-            print(new_file,'new_file')
+            buffer_output = convert_other_to_pdf(input_file)
 
-            # instance = PdfModel(user=request.user)
-            # # instance.pdf.save(f"output.pdf", ContentFile(buffer.getvalue()))
-            # instance.pdf.save(f"output.pdf", new_file)
-            # instance.save()
+            instance = PdfModel(user=request.user)
+            instance.pdf.save(f"output.pdf", ContentFile(buffer_output))
+            instance.save()
 
-            serializer = PDFSerializer(new_file, context={'request': request})
-            return Response({'message': 'Word document conversion successful.', 'data': serializer.data})
+            serializer = PDFSerializer(instance, context={'request': request})
+            return Response({'message': 'Conversion successful.', 'data': serializer.data})
         except Exception as e:
             traceback.print_exc()
             return Response({'error': f'An error occurred: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
