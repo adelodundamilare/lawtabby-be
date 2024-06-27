@@ -14,7 +14,7 @@ from .models import PdfModel, ProtectedPDF, PDFImageConversion, WordToPdfConvers
 from django.shortcuts import get_object_or_404
 from django.core.files.base import ContentFile
 from django.contrib.sites.shortcuts import get_current_site
-from .utils import convert_other_to_pdf, pdf_to_ocr, protect_pdf, merge_pdf, compress_pdf, split_pdf, convert_pdf_to_image, create_zip_file, stamp_pdf_with_text,  organize_pdf, summarize_pdf, unlock_pdf
+from .utils import convert_other_to_pdf, convert_pdf_to_other, pdf_to_ocr, protect_pdf, merge_pdf, compress_pdf, split_pdf, convert_pdf_to_image, create_zip_file, stamp_pdf_with_text,  organize_pdf, summarize_pdf, unlock_pdf
 from .serializers import PDFSerializer, OcrPdfSerializer, ProtectedPDFSerializer, MergedPDFSerializer, CompressedPDFSerializer, SplitPDFSerializer, PDFImageConversionSerializer, StampPdfSerializer, WordToPdfConversionSerializer, OrganizedPdfSerializer, UnlockPdfSerializer
 
 from history.utils import add_to_downloads, add_to_uploads
@@ -187,6 +187,35 @@ class SplitPDFDeleteView(generics.DestroyAPIView):
     permission_classes = [IsAuthenticated]
 
 
+
+
+class PdfToOtherConversionView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, format=None):
+        input_file = request.FILES.get('input_pdf')
+        format = request.data.get('format', '')
+
+        if not input_file:
+            return Response({'error': 'No input file provided.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not format:
+            return Response({'error': 'Conversion format input not provided.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            # add_to_uploads(request.user, input_file)
+            output_file = convert_pdf_to_other(format, input_file)
+
+            instance = PdfModel(user=request.user)
+            instance.pdf.save(output_file.name, output_file)
+            instance.save()
+
+            serializer = PDFSerializer(instance, context={'request': request})
+            return Response({'message': 'Conversion successful.', 'data': serializer.data})
+        except Exception as e:
+            traceback.print_exc()
+            return Response({'error': f'An error occurred: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 class PDFToImageConversionView(APIView):
     permission_classes = [IsAuthenticated]
     parser_classes = (MultiPartParser, FormParser)
@@ -253,8 +282,7 @@ class PDFToImageDeleteView(generics.DestroyAPIView):
 
 
 
-# name should change to OtherToPdf
-class WordToPdfConversionView(APIView):
+class OtherToPdfConversionView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, format=None):
@@ -264,7 +292,7 @@ class WordToPdfConversionView(APIView):
             return Response({'error': 'No input file provided.'}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            # add_to_uploads(request.user, input_file)
+            add_to_uploads(request.user, input_file)
             buffer_output = convert_other_to_pdf(input_file)
 
             instance = PdfModel(user=request.user)
@@ -277,28 +305,8 @@ class WordToPdfConversionView(APIView):
             traceback.print_exc()
             return Response({'error': f'An error occurred: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-        # try:
-            # user = request.user
-            # conversion_instance = WordToPdfConversion(user=user)
-            # conversion_instance.save()
 
-            # converted_files = convert_other_to_pdf(input_files)
-            # print(converted_files, 'converted_files')
-
-            # for converted_file in converted_files:
-            #     word_to_pdf_instance = WordToPdf(word_to_pdf=converted_file)
-            #     word_to_pdf_instance.save()
-            #     conversion_instance.word_to_pdfs.add(word_to_pdf_instance)
-
-            # conversion_instance.save()
-
-            # serializer = WordToPdfConversionSerializer(conversion_instance, context={'request': request})
-        #     return Response({'message': 'Word to PDF conversion completed.', 'conversion_data': serializer.data})
-        # except Exception as e:
-        #     return Response({'error': f'An error occurred: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-
-class WordToPdfConversionDeleteView(generics.DestroyAPIView):
+class OtherToPdfConversionDeleteView(generics.DestroyAPIView):
     queryset = WordToPdfConversion.objects.all()
     serializer_class = WordToPdfConversionSerializer
     permission_classes = [IsAuthenticated]

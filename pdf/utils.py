@@ -7,17 +7,17 @@ from PIL import Image
 from io import BytesIO
 from reportlab.lib import colors
 import pytesseract
-import pdfkit
+import docx
 from docx import Document
 import io
-
+from markdownify import markdownify as md
 from PyPDF2 import PdfReader, PdfWriter
 from django.core.files.base import ContentFile
 from zipfile import ZipFile
 from django.contrib.sites.shortcuts import get_current_site
 from pptx import Presentation
 import pandas as pd
-
+from pdf2docx import Converter
 from reportlab.pdfgen.canvas import Canvas
 from reportlab.lib.pagesizes import letter, landscape, A4
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Image, Spacer, Table, TableStyle
@@ -26,13 +26,14 @@ from reportlab.lib.pagesizes import letter
 from reportlab.lib.units import inch
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.pagesizes import letter, landscape
+from PyPDF2 import PdfFileReader
 
 from PIL import Image as PILImage
 
 import openai
 
 from .models import OcrPdf, ProtectedPDF,MergedPDF, CompressedPDF, SplitPDF, OrganizedPdf, StampPdf, UnlockPdf
-
+from pdf2image import convert_from_path
 from django.conf import settings
 
 TEMP_PATH = settings.TEMP_PATH
@@ -240,22 +241,22 @@ def split_pdf(request, input_pdf, start_page, end_page, user):
 
 #convert pdf to images
 
-def convert_pdf_to_image(input_pdf):
-    temp_file_path = os.path.join(TEMP_PATH, input_pdf.name)
-    with open(temp_file_path, 'wb') as temp_file:
-        for chunk in input_pdf.chunks():
-            temp_file.write(chunk)
+# def convert_pdf_to_image(input_pdf):
+#     temp_file_path = os.path.join(TEMP_PATH, input_pdf.name)
+#     with open(temp_file_path, 'wb') as temp_file:
+#         for chunk in input_pdf.chunks():
+#             temp_file.write(chunk)
 
-    with fitz.open(temp_file_path) as pdf_document:  # Use a context manager to ensure proper closing
-        image_paths = []
-        for page_number in range(pdf_document.page_count):
-            page = pdf_document[page_number]
-            image = page.get_pixmap()
-            image_data = image.tobytes()  # Extract raw image bytes
-            image_paths.append(image_data)  # Append raw bytes directly
+#     with fitz.open(temp_file_path) as pdf_document:  # Use a context manager to ensure proper closing
+#         image_paths = []
+#         for page_number in range(pdf_document.page_count):
+#             page = pdf_document[page_number]
+#             image = page.get_pixmap()
+#             image_data = image.tobytes()  # Extract raw image bytes
+#             image_paths.append(image_data)  # Append raw bytes directly
 
-    os.remove(temp_file_path)  # Clean up the temporary file
-    return image_paths
+#     os.remove(temp_file_path)  # Clean up the temporary file
+#     return image_paths
 
 
 def create_zip_file(images, user):
@@ -443,7 +444,162 @@ def convert_other_to_pdf(file):
     else:
         raise ValueError(f"Unsupported file format: {file_extension}")
 
+def convert_pdf_to_other(output_format, file):
+    temp_file_path = open_file(file)
 
+    convert_to = output_format.lower()
+
+    if convert_to == 'docx':
+        return convert_pdf_to_docx(temp_file_path)
+    elif convert_to == 'png':
+        return convert_pdf_to_png(temp_file_path)
+    elif convert_to == 'txt':
+        return convert_pdf_to_txt(temp_file_path)
+    elif convert_to == 'md':
+        return convert_pdf_to_md(temp_file_path)
+    elif convert_to in ['jpg', 'jpeg']:
+        return convert_pdf_to_jpg(temp_file_path, convert_to)
+    else:
+        raise ValueError(f"Unsupported output format: {output_format}")
+
+def convert_pdf_to_docx(pdf_path):
+    output_path = pdf_path.replace('.pdf', '.docx')
+    cv = Converter(pdf_path)
+    cv.convert(output_path)
+    cv.close()
+
+    with open(output_path, 'rb') as f:
+        output_file = BytesIO(f.read())
+    output_file.name = os.path.basename(output_path)
+    os.remove(output_path)  # Clean up temporary file
+    return output_file
+
+def convert_pdf_to_png(pdf_file):
+    pdf_path = pdf_file.path
+    images = convert_from_path(pdf_path)
+    output_files = []
+
+    for i, image in enumerate(images):
+        output_path = pdf_path.replace('.pdf', f'_{i}.png')
+        image.save(output_path, 'PNG')
+        with open(output_path, 'rb') as f:
+            output_file = BytesIO(f.read())
+        output_file.name = os.path.basename(output_path)
+        output_files.append(output_file)
+        os.remove(output_path)  # Clean up temporary file
+
+    return output_files[0]  # Return the first image file for simplicity
+
+def convert_pdf_to_txt(pdf_file):
+    output_path = pdf_file.replace('.pdf', '.txt')
+    pdf_reader = PdfReader(pdf_file)
+
+    with open(output_path, 'w') as f:
+        for page_num in range(len(pdf_reader.pages)):
+            page = pdf_reader.pages[page_num]
+            f.write(page.extract_text())
+
+    output_file = write_file(output_path)
+
+    return output_file
+
+def convert_pdf_to_md( pdf_file):
+    txt_output = convert_pdf_to_txt(pdf_file)
+    txt_output.seek(0)
+    markdown_text = md(txt_output.read().decode('utf-8'))
+    output_file = BytesIO(markdown_text.encode('utf-8'))
+    output_file.name = os.path.basename(pdf_file.path).replace('.pdf', '.md')
+    return output_file
+
+def convert_pdf_to_jpg(pdf_file, convert_to):
+    return convert_pdf_to_image(pdf_file, format=convert_to)
+
+def convert_pdf_to_image(pdf_file, format):
+
+    with fitz.open(pdf_file) as pdf_document:
+
+        image_paths = []
+        for page_number in range(pdf_document.page_count):
+            page = pdf_document[page_number]
+            image = page.get_pixmap()
+            image_data = image.tobytes()  # Extract raw image bytes
+            image_paths.append(image_data)  # Append raw bytes directly
+
+    os.remove(pdf_file)  # Clean up the temporary file
+    # zip_buffer = BytesIO()
+    # with ZipFile(zip_buffer, 'w') as zip_file:
+    #     for i, image_data in enumerate(image_paths):
+    #         zip_file.writestr(f'page_{i + 1}.jpeg', image_data)
+
+    # zip_name = f'pdf_images.zip'  # Simplified zip file name
+    # zip_buffer.getvalue()
+    # with open(pdf_file, 'rb') as f:
+    #     output_file = BytesIO(f.read())
+    # output_file.name = os.path.basename(output_path)
+    # os.remove(output_path)  # Clean up temporary file
+
+    return image_paths[0]
+
+    # pdf_path = pdf_file.path
+    # images = convert_from_path(pdf_path)
+    # output_files = []
+
+    # for i, image in enumerate(images):
+    #     output_path = pdf_path.replace('.pdf', f'_{i}.{format.lower()}')
+    #     image.save(output_path, format)
+    #     with open(output_path, 'rb') as f:
+    #         output_file = BytesIO(f.read())
+    #     output_file.name = os.path.basename(output_path)
+    #     output_files.append(output_file)
+    #     os.remove(output_path)  # Clean up temporary file
+
+    #     print(output_files, 'output_files')
+
+    # return output_files[0]  # Return the first image file for simplicity
+
+# def _convert_to_image(pdf_file, image_format):
+#     images = convert_from_path(pdf_file)
+#     output_files = []
+#     for i, image in enumerate(images):
+#         output_file = f"output_page_{i+1}.{image_format}"
+#         output_path = fs.path(output_file)
+#         image.save(output_path, image_format.upper())
+#         output_files.append(output_file)
+#     return output_files
+
+# def _convert_to_docx(self):
+#     doc = docx.Document()
+#     pdf_reader = PyPDF2.PdfReader(self.file.path)
+#     for page in pdf_reader.pages:
+#         text = page.extract_text()
+#         doc.add_paragraph(text)
+#     output_file = "output.docx"
+#     output_path = fs.path(output_file)
+#     doc.save(output_path)
+#     return output_file
+
+# def _convert_to_txt(self):
+#     pdf_reader = PyPDF2.PdfReader(self.file.path)
+#     text = ""
+#     for page in pdf_reader.pages:
+#         text += page.extract_text()
+#     output_file = "output.txt"
+#     output_path = fs.path(output_file)
+#     with open(output_path, "w", encoding="utf-8") as f:
+#         f.write(text)
+#     return output_file
+
+# def _convert_to_markdown(self):
+#     pdf_reader = PyPDF2.PdfReader(self.file.path)
+#     text = ""
+#     for page in pdf_reader.pages:
+#         text += page.extract_text()
+#     md = markdown.markdown(text)
+#     output_file = "output.md"
+#     output_path = fs.path(output_file)
+#     with open(output_path, "w", encoding="utf-8") as f:
+#         f.write(md)
+#     return output_file
 
 def organize_pdf(input_pdf, user_order, pages_to_exclude, user):
 
@@ -615,6 +771,15 @@ def open_file(input_pdf):
         raise FileNotFoundError(f"Input PDF file '{temp_file_path}' not found.")
 
     return temp_file_path
+
+def write_file(output_path):
+    with open(output_path, 'rb') as f:
+        output_file = BytesIO(f.read())
+    output_file.name = os.path.basename(output_path)
+
+    os.remove(output_path)  # Clean up temporary file
+
+    return output_file
 
 def split_text(text, chunk_size=5000):
     """

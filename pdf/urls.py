@@ -19,10 +19,11 @@ urlpatterns = [
 
     #pdf to image/jpg
     path('pdf_to_image/', PDFToImageConversionView.as_view(), name='pdf_to_image'),
+    path('pdf_to_other/', PdfToOtherConversionView.as_view(), name='pdf_to_other'),
     path('pdf_to_image/delete/<int:pk>/', PDFToImageDeleteView.as_view(), name='pdf_to_image_delete'),
     #word to pdf
-    path('word_to_pdf/', WordToPdfConversionView.as_view(), name='word_to_pdf'),
-    path('word_to_pdf/delete/<int:pk>/', WordToPdfConversionDeleteView.as_view(), name='word_to_pdf_delete'),
+    path('word_to_pdf/', OtherToPdfConversionView.as_view(), name='word_to_pdf'),
+    path('word_to_pdf/delete/<int:pk>/', OtherToPdfConversionDeleteView.as_view(), name='word_to_pdf_delete'),
 
 
     #organize pdf
