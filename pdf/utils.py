@@ -12,14 +12,21 @@ from reportlab.lib import colors
 import pytesseract
 import pdfkit
 from docx import Document
-from fpdf import FPDF
-import concurrent.futures
-from docx2pdf import convert
+import io
+
 from PyPDF2 import PdfReader, PdfWriter
 from django.core.files.base import ContentFile
 from zipfile import ZipFile
 from django.contrib.sites.shortcuts import get_current_site
-from rest_framework.reverse import reverse
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Image, Spacer
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import letter
+from reportlab.lib.units import inch
+from reportlab.lib.styles import getSampleStyleSheet
+from PIL import Image as PILImage
+from zipfile import BadZipFile
+import subprocess
+import tempfile
 
 import openai
 
@@ -313,9 +320,7 @@ def create_zip_file(images, user):
 
 #     return converted_files
 
-import subprocess
-import tempfile
-import os
+
 
 # def convert_to_pdf(input_file_path, output_file_path):
 #     """
@@ -384,35 +389,95 @@ def save_uploaded_file(input_file):
             temp_file.write(chunk)
     return temp_file_path
 
-def convert_other_to_pdf(input_file):
-    """
-    Converts uploaded file to PDF format based on its extension.
-    """
+def convert_other_to_pdf(docx_file, user):
     try:
-        temp_file_path = save_uploaded_file(input_file)
-        output_file_path = temp_file_path.replace(os.path.splitext(input_file.name)[1], '.pdf')
+        # Read the Word document
+        doc = Document(docx_file)
+    except BadZipFile:
+        print(f"Error: The file {docx_file.name} is not a valid Word document.")
+        raise ValueError("Invalid Word document")
 
-        # Determine conversion command based on file extension
-        file_extension = os.path.splitext(input_file.name)[1].lower()
+    # Create a buffer for the PDF
+    buffer = io.BytesIO()
 
-        pdfkit.from_file(input_file, output_file_path)
-        # conversion_command = ['pandoc', temp_file_path, "-o", output_file_path]
-        # if file_extension in ('.txt', '.xlsx'):
-        #     conversion_command.insert(2, "--from=plain")
-        # elif file_extension == '.docx':
-        #     conversion_command.insert(2, "--from=docx")
+    # Create the PDF document
+    pdf = SimpleDocTemplate(buffer, pagesize=letter)
 
-        print(TEMP_PATH, 'TEMP_PATH')
-        print(temp_file_path, 'temp_file_path')
-        print(output_file_path, 'output_file_path')
+    # Create a list to hold the flowables
+    elements = []
 
-        # subprocess.run(['unoconv', '-f', 'pdf', '-o', output_file_path, temp_file_path], check=True)
-        # print(f"Conversion successful. PDF saved as {output_file_path}")
-        # subprocess.run(['libreoffice', '--headless', '--convert-to', 'pdf', '--outdir', TEMP_PATH, temp_file_path], check=True)
-        # print(f"Conversion successful. PDF saved as {output_file_path}")
+    # Define styles
+    styles = getSampleStyleSheet()
 
+    # Iterate through paragraphs in the Word document
+    for para in doc.paragraphs:
+        elements.append(Paragraph(para.text, styles['Normal']))
+        elements.append(Spacer(1, 12))  # Add some space between paragraphs
+
+    # Handle images
+    for rel in doc.part.rels.values():
+        if "image" in rel.reltype:
+            try:
+                image_part = rel.target_part
+                image_buffer = io.BytesIO(image_part.blob)
+                img = PILImage.open(image_buffer)
+                img_width, img_height = img.size
+                aspect = img_height / float(img_width)
+                img_width = 6 * inch
+                img_height = aspect * img_width
+                elements.append(Image(image_buffer, width=img_width, height=img_height))
+                elements.append(Spacer(1, 12))  # Add some space after the image
+            except Exception as e:
+                print(f"Error processing image: {str(e)}. Skipping this image.")
+                elements.append(Paragraph("(Image processing error)", styles['Normal']))
+
+    # Build the PDF
+    try:
+        pdf.build(elements)
     except Exception as e:
-        print(f"An error occurred during conversion: {e}")
+        print(f"Error building PDF: {str(e)}")
+        raise ValueError("Error creating PDF")
+
+    # Get the value of the BytesIO buffer
+    # pdf_value = ContentFile(buffer.getvalue())
+    # buffer.close()
+
+    instance = PdfModel(user=user)
+    instance.pdf.save(f"output.pdf", ContentFile(buffer.getvalue()))
+    # instance.pdf.save(f"output.pdf", new_file)
+    instance.save()
+
+    return instance
+
+# def convert_other_to_pdf(input_file):
+#     """
+#     Converts uploaded file to PDF format based on its extension.
+#     """
+#     try:
+#         temp_file_path = save_uploaded_file(input_file)
+#         output_file_path = temp_file_path.replace(os.path.splitext(input_file.name)[1], '.pdf')
+
+#         # Determine conversion command based on file extension
+#         file_extension = os.path.splitext(input_file.name)[1].lower()
+
+#         pdfkit.from_file(input_file, output_file_path)
+#         # conversion_command = ['pandoc', temp_file_path, "-o", output_file_path]
+#         # if file_extension in ('.txt', '.xlsx'):
+#         #     conversion_command.insert(2, "--from=plain")
+#         # elif file_extension == '.docx':
+#         #     conversion_command.insert(2, "--from=docx")
+
+#         print(TEMP_PATH, 'TEMP_PATH')
+#         print(temp_file_path, 'temp_file_path')
+#         print(output_file_path, 'output_file_path')
+
+#         # subprocess.run(['unoconv', '-f', 'pdf', '-o', output_file_path, temp_file_path], check=True)
+#         # print(f"Conversion successful. PDF saved as {output_file_path}")
+#         # subprocess.run(['libreoffice', '--headless', '--convert-to', 'pdf', '--outdir', TEMP_PATH, temp_file_path], check=True)
+#         # print(f"Conversion successful. PDF saved as {output_file_path}")
+
+#     except Exception as e:
+#         print(f"An error occurred during conversion: {e}")
 
 
 

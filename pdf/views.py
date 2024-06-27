@@ -10,12 +10,12 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.parsers import MultiPartParser, FormParser
 from django.http import FileResponse
 
-from .models import ProtectedPDF, PDFImageConversion, WordToPdfConversion, WordToPdf, OrganizedPdf, MergedPDF,CompressedPDF, SplitPDF, UnlockPdf
+from .models import PdfModel, ProtectedPDF, PDFImageConversion, WordToPdfConversion, WordToPdf, OrganizedPdf, MergedPDF,CompressedPDF, SplitPDF, UnlockPdf
 from django.shortcuts import get_object_or_404
 from django.core.files.base import ContentFile
 from django.contrib.sites.shortcuts import get_current_site
 from .utils import convert_other_to_pdf, pdf_to_ocr, protect_pdf, merge_pdf, compress_pdf, split_pdf, convert_pdf_to_image, create_zip_file, stamp_pdf_with_text,  organize_pdf, summarize_pdf, unlock_pdf
-from .serializers import BasicSerializer, OcrPdfSerializer, ProtectedPDFSerializer, MergedPDFSerializer, CompressedPDFSerializer, SplitPDFSerializer, PDFImageConversionSerializer, StampPdfSerializer, WordToPdfConversionSerializer, OrganizedPdfSerializer, UnlockPdfSerializer
+from .serializers import PDFSerializer, OcrPdfSerializer, ProtectedPDFSerializer, MergedPDFSerializer, CompressedPDFSerializer, SplitPDFSerializer, PDFImageConversionSerializer, StampPdfSerializer, WordToPdfConversionSerializer, OrganizedPdfSerializer, UnlockPdfSerializer
 
 from history.utils import add_to_downloads, add_to_uploads
 
@@ -261,17 +261,23 @@ class WordToPdfConversionView(APIView):
         input_file = request.FILES.get('input_file')
 
         if not input_file:
-            return Response({'error': 'No input files provided.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': 'No input file provided.'}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            add_to_uploads(request.user, input_file)
+            # add_to_uploads(request.user, input_file)
             # new_file = convert_other_to_pdf(input_file, request.user)
-            new_file = convert_other_to_pdf(input_file)
+            new_file = convert_other_to_pdf(input_file, user=request.user)
             print(new_file,'new_file')
 
-            serializer = StampPdfSerializer(new_file, context={'request': request})
-            return Response({'message': 'PDF pages stamped successfully.', 'data': serializer.data})
+            # instance = PdfModel(user=request.user)
+            # # instance.pdf.save(f"output.pdf", ContentFile(buffer.getvalue()))
+            # instance.pdf.save(f"output.pdf", new_file)
+            # instance.save()
+
+            serializer = PDFSerializer(new_file, context={'request': request})
+            return Response({'message': 'Word document conversion successful.', 'data': serializer.data})
         except Exception as e:
+            traceback.print_exc()
             return Response({'error': f'An error occurred: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         # try:
@@ -427,7 +433,7 @@ class SummarizePDFView(APIView):
             response = summarize_pdf(input_pdf, request.user)
 
 
-            # serializer = BasicSerializer(response, context={'request': request})
+            # serializer = PDFSerializer(response, context={'request': request})
             return Response({'message': 'PDF Summary generation successful.', 'data': response})
         except Exception as e:
             return Response({'error': f'An error occurred: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

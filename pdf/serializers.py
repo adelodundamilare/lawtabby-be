@@ -118,7 +118,7 @@ class OcrPdfSerializer(serializers.ModelSerializer):
             return f"{base_url}{settings.MEDIA_URL}{obj.organize_pdf.name}"
         return None
 
-class BasicSerializer(serializers.ModelSerializer):
+class PDFSerializer(serializers.ModelSerializer):
     class Meta:
         model = PdfModel
         fields = ['id', 'user',  'pdf', 'created_at']
