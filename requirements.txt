@@ -45,6 +45,7 @@ isodate==0.6.1
 joblib==1.4.2
 looseversion==1.3.0
 lxml==5.1.0
+Markdown==3.6
 markdownify==0.12.1
 networkx==3.2.1
 nibabel==5.2.0
