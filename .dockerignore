@@ -1,3 +1,6 @@
-fly.toml
-.git/
+.git
+*.pyc
+__pycache__
+*.md
+*.log
 *.sqlite3
