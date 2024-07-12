@@ -1,7 +1,6 @@
 # Use an official Python runtime as a parent image
 FROM python:3.9
 
-# Set environment variables
 ENV PYTHONUNBUFFERED 1
 ENV DJANGO_SETTINGS_MODULE project.settings
 
@@ -19,12 +18,15 @@ RUN apt-get update && apt-get install -y \
 # Install Python dependencies
 COPY requirements.txt /app/
 RUN pip install --upgrade pip && pip install -r requirements.txt
+
 # Copy project
 COPY . /app/
 
+# Create directory for temporary files
+RUN mkdir -p /app/temp_files && chmod 777 /app/temp_files
+
 # Collect static files
 RUN python manage.py collectstatic --noinput
-RUN mkdir -p /app/temp_files && chmod 777 /app/temp_files
 
 # Copy entrypoint script
 COPY entrypoint.sh /app/entrypoint.sh
