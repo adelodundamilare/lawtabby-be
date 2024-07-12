@@ -670,7 +670,7 @@ def pdf_to_ocr(input_pdf, user):
         raise FileNotFoundError(f"Input PDF file '{temp_file_path}' not found.")
 
     # Configure Tesseract OCR path
-    pytesseract.pytesseract.tesseract_cmd = "C:\\Program Files\\Tesseract-OCR\\tesseract.exe"
+    # pytesseract.pytesseract.tesseract_cmd = "C:\\Program Files\\Tesseract-OCR\\tesseract.exe"
 
     # Check Tesseract OCR version
     if not pytesseract.pytesseract.get_tesseract_version():
@@ -681,13 +681,23 @@ def pdf_to_ocr(input_pdf, user):
 
     for page_num in range(len(pdf_document)):
         page = pdf_document.load_page(page_num)
-        image_bytes = page.get_pixmap().tobytes()
-        image = Image.open(BytesIO(image_bytes))
-        ocr_text = pytesseract.image_to_string(image)
+        pix = page.get_pixmap()
+        img = PILImage.frombytes("RGB", [pix.width, pix.height], pix.samples)
+        ocr_text = pytesseract.image_to_string(img)
 
         # Add OCR text to a new page in the output PDF
         new_page = pdf_writer.new_page(width=page.rect.width, height=page.rect.height)
         new_page.insert_text((0, 0), ocr_text)
+
+    # for page_num in range(len(pdf_document)):
+    #     page = pdf_document.load_page(page_num)
+    #     image_bytes = page.get_pixmap().tobytes()
+    #     image = PILImage.frombytes(BytesIO(image_bytes))
+    #     ocr_text = pytesseract.image_to_string(image)
+
+    #     # Add OCR text to a new page in the output PDF
+    #     new_page = pdf_writer.new_page(width=page.rect.width, height=page.rect.height)
+    #     new_page.insert_text((0, 0), ocr_text)
 
     # Save the OCR result as a PDF
     buffer = BytesIO()
@@ -698,6 +708,9 @@ def pdf_to_ocr(input_pdf, user):
     pdf = OcrPdf(user=user)
     pdf.pdf.save('ocr_output.pdf', ContentFile(buffer.getvalue()))
     pdf.save()
+
+    # Clean up temporary file
+    os.remove(temp_file_path)
 
     return pdf
 

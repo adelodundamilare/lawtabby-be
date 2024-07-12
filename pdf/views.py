@@ -422,6 +422,7 @@ class OcrPDFView(APIView):
             serializer = OcrPdfSerializer(new_file, context={'request': request})
             return Response({'message': 'OCR to PDF conversion successful.', 'data': serializer.data})
         except Exception as e:
+            traceback.print_exc()
             return Response({'error': f'An error occurred: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class SummarizePDFView(APIView):
