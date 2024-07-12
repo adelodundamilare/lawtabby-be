@@ -601,7 +601,7 @@ def organize_pdf(input_pdf, user_order, pages_to_exclude, user):
     if isinstance(user_order, str):
         user_order = list(map(int, user_order.split(',')))
     if isinstance(pages_to_exclude, str):
-        pages_to_exclude = list(map(int, pages_to_exclude.split(',')))
+        pages_to_exclude = [int(page.strip()) for page in pages_to_exclude.split(',') if page.strip()] if pages_to_exclude else []
 
     with input_pdf.open(mode='rb') as pdf_file:
         pdf_reader = PyPDF2.PdfReader(pdf_file)
