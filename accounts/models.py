@@ -80,13 +80,13 @@ class User(AbstractBaseUser, PermissionsMixin):
     name = models.CharField(max_length=254, null=True, blank=True)
     email_verification_code = models.CharField(max_length=50, null=True)
     avatar = models.ImageField(upload_to='avatars/', null=True, blank=True)
-    subscription = models.OneToOneField(
-        Subscription,
-        on_delete=models.CASCADE,
-        null=True,
-        blank=True,
-        related_name='user_subscription',
-    )
+    # subscription = models.OneToOneField(
+    #     Subscription,
+    #     on_delete=models.CASCADE,
+    #     null=True,
+    #     blank=True,
+    #     related_name='user_subscription',
+    # )
     is_staff = models.BooleanField(default=False)
     is_superuser = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
@@ -110,7 +110,16 @@ class User(AbstractBaseUser, PermissionsMixin):
         super(User, self).save(*args, **kwargs)
 
 
+class StripeCustomer(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    stripe_customer_id = models.CharField(max_length=255, blank=True, null=True)
+    stripe_checkout_session_id = models.CharField(max_length=255, blank=True, null=True)
+    stripe_price_id = models.CharField(max_length=255)
+    has_access = models.BooleanField(default=False)
+    is_completed = models.BooleanField(default=False)
 
+    def __str__(self):
+        return self.user.email
 
 
 @receiver(post_save, sender=User)

@@ -41,6 +41,7 @@ urlpatterns = [
     path('accounts/', include('accounts.urls')),
     path("accounts/", include("allauth.urls")),
     path('payment/', include('payment.urls')),
+    path('subscription/', include('subscription.urls')),
     path('pdf/', include('pdf.urls')),
     path('chat/', include('chat.urls')),
     path('history/', include('history.urls')),

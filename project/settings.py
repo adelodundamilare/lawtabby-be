@@ -67,7 +67,8 @@ INSTALLED_APPS = [
     'payment',
     'pdf',
     'chat',
-    'history'
+    'history',
+    'subscription'
 ]
 
 MIDDLEWARE = [
@@ -138,14 +139,14 @@ CORS_ALLOW_METHODS = [
 # https://docs.djangoproject.com/en/1.11/ref/settings/#databases
 
 DATABASES = {
-    # 'default': {
-    #     'ENGINE': 'django.db.backends.sqlite3',
-    #     'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
-    # }
-    'default': dj_database_url.config(
-        default=config('DATABASE_URL'),
-        conn_max_age=600
-    )
+    'default': {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
+    }
+    # 'default': dj_database_url.config(
+    #     default=config('DATABASE_URL'),
+    #     conn_max_age=600
+    # )
 }
 
 
@@ -259,7 +260,6 @@ EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
 STRIPE_PUBLIC_KEY = config('STRIPE_PUBLIC_KEY', default='')
 STRIPE_SECRET_KEY = config('STRIPE_SECRET_KEY', default='')
 STRIPE_WEBHOOK_SECRET = config('STRIPE_WEBHOOK_SECRET', default='')
-
 
 
 SOCIALACCOUNT_PROVIDERS = {
