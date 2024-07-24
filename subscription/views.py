@@ -58,12 +58,16 @@ def create_admin(request):
 
 
 @api_view(['GET'])
-def list_subscriptions(request):
+@permission_classes([IsAuthenticated])
+def get_products(request):
     try:
-        result = utils.get_products()
+        result, has_active_sub = utils.get_products(user=request.user)
 
-        if not result:
+        if not result and not has_active_sub:
             return Response({'error': 'Failed to get products'}, status=400)
+
+        if has_active_sub:
+            return Response({'message': 'User already has an active subscription', 'data':[]}, status=200)
 
         response_data = {
             'message': 'Products retrieved successfully',
@@ -147,3 +151,17 @@ def stripe_webhook(request):
         utils.on_checkout_session_deleted(session)
 
     return JsonResponse({'status': 'success'}, status=200)
+
+@api_view(['GET'])
+def user_subscription_status(request):
+    try:
+        customer = stripe.Customer.list(email=request.user.email).data
+        if customer:
+            subscriptions = stripe.Subscription.list(customer=customer[0].id, status='active')
+            # print(subscriptions, 'subscriptions')
+            if subscriptions.data:
+                return JsonResponse({'subscription': True})
+
+        return JsonResponse({'subscription': False})
+    except stripe.error.StripeError as e:
+        return JsonResponse({'error': str(e)}, status=500)

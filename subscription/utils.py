@@ -75,7 +75,10 @@ def  create_portal_session(user, page_url):
 
     return portal_session.url
 
-def get_products():
+def get_products(user):
+    if has_active_sub(user):
+        return [], True
+
     products = stripe.Product.list(active=True, expand=['data.default_price'])
     products_data = []
 
@@ -91,12 +94,15 @@ def get_products():
         }
         products_data.append(product_data)
 
-    return products_data
+    return products_data, False
 
-def is_user_subscribed(user):
-    customer = user.subscription.customer
+def has_active_sub(user):
+    customer = stripe.Customer.list(email=user.email).data
+
     if customer:
-        return True
+        subscriptions = stripe.Subscription.list(customer=customer[0].id, status='active')
+        if subscriptions.data:
+            return True
     return False
 
 def on_checkout_session_completed(session):
