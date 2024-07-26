@@ -102,7 +102,7 @@ social-auth-app-django==5.4.0
 social-auth-core==4.5.0
 soupsieve==2.5
 sqlparse==0.4.4
-stripe==7.4.0
+stripe==4.2.0
 termcolor==2.4.0
 tqdm==4.66.2
 traits==6.3.2
